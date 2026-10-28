@@ -1,74 +1,173 @@
-# INACADT — Muro Universitario de Intercambio de Conocimiento
+# INACADT
 
-Prototipo de **INACADT** para la **Evaluación 3 de Ingeniería Informática**, construido con **Next.js (App Router + TypeScript)**, **Tailwind CSS** y **Supabase (`@supabase/supabase-js`)**.
+Prototipo de una plataforma universitaria para compartir conocimiento académico, gestionar publicaciones y diferenciar perfiles con roles docentes/alumnos.
 
----
+El proyecto está desarrollado con Next.js 16, React 19, TypeScript y Tailwind CSS, y soporta tanto una integración real con Supabase como un modo de demostración local cuando no hay configuración de entorno disponible.
 
-## Cumplimiento de Requerimientos
+## Estado actual del proyecto
 
-| Código | Requerimiento | Implementación en el Proyecto |
-| :--- | :--- | :--- |
-| **RF01** | **Autenticación** | Pantalla de inicio de sesión y registro conectada a **Supabase Auth** (`src/components/auth/LoginForm.tsx` y `src/lib/supabase/actions.ts`). |
-| **RF03 / RF04** | **Muro de Publicaciones** | Vista principal (`/dashboard`) que lista tarjetas responsivas con **Título**, **Contenido**, **Categoría**, **Complejidad** (`Sencillo`, `Avanzado`, `Asistido`) y distintivo visual para el **Sello de Profesor**. |
-| **RF08** | **Otorgar Sello (Crítico)** | Si el usuario autenticado posee el rol `'Profesor'` en la tabla `usuarios` de Supabase, se habilita el botón **"Otorgar Sello"** en cada tarjeta, actualizando `posee_sello_profesor = true` mediante la API (`PATCH /api/publicaciones/[id]/sello`). |
-| **RNF03** | **Identidad Visual y WCAG 2.1 AA** | Paleta institucional de alto contraste (`> 8:1` en cabeceras rojo oscuro `#7F1D1D`/`#991B1B` con texto blanco `#FFFFFF`, grises neutros `#0F172A`/`#334155`), navegación por teclado (`:focus-visible`), enlace `Saltar al contenido principal` y atributos ARIA. |
-| **OWASP** | **Seguridad y Rutas Privadas** | Validación y sanitización contra inyecciones XSS/SQLi en cliente y servidor (`src/lib/security/validation.ts`), protección de rutas privadas en `src/proxy.ts` y cabeceras HTTP seguras. |
+La aplicación ya incluye:
 
----
+- flujo de autenticación con login y registro en Supabase Auth
+- autenticación local por demo para desarrollo sin credenciales reales
+- protección de rutas privadas para /dashboard
+- muro de publicaciones con búsqueda, filtros y carga de datos de ejemplo
+- creación de publicaciones desde la UI
+- marca de sello de profesor y validación de permisos por rol
+- sanitización y validación de entrada para mitigar XSS e inyección
+- estilos institucionales y accesibilidad básica en la interfaz
 
-## Estructura del Proyecto
+## Stack tecnológico
 
-```text
-src/
-├── app/
-│   ├── api/
-│   │   └── publicaciones/
-│   │       ├── route.ts                 # GET y POST de publicaciones
-│   │       └── [id]/sello/route.ts      # PATCH/POST para Otorgar Sello (RF08)
-│   ├── auth/page.tsx                    # Ruta de autenticación (/auth)
-│   ├── login/page.tsx                   # Pantalla principal de Login (RF01)
-│   ├── dashboard/page.tsx               # Muro de Publicaciones protegido (RF03/RF04/RF08)
-│   ├── globals.css                      # Variables institucionales y foco accesible WCAG AA
-│   ├── layout.tsx                       # Layout raíz con soporte de accesibilidad
-│   └── page.tsx                         # Redirección segura hacia /login o /dashboard
-├── components/
-│   ├── auth/
-│   │   └── LoginForm.tsx                # Formulario de Login/Registro con validación OWASP
-│   └── dashboard/
-│       ├── MuroDashboard.tsx            # Vista principal del Muro con filtros y KPIs
-│       ├── Navbar.tsx                   # Barra institucional con indicador de Rol
-│       ├── NuevaPublicacionModal.tsx    # Modal para publicar clasificados (RF03)
-│       └── PublicacionCard.tsx          # Tarjeta de publicación y botón "Otorgar Sello" (RF08)
-├── lib/
-│   ├── security/
-│   │   └── validation.ts                # Reglas OWASP contra XSS y SQL Injection
-│   └── supabase/
-│       ├── actions.ts                   # Acciones de Auth, lectura de rol y publicaciones
-│       ├── client.ts                    # Inicialización de @supabase/supabase-js
-│       └── mockData.ts                  # Datos semilla de respaldo para demostración
-├── proxy.ts                             # Protección de rutas privadas (/dashboard) y headers OWASP
-└── types/
-    └── inacadt.ts                       # Contratos TypeScript del dominio INACADT
-supabase/
-└── schema.sql                           # Script SQL para crear tablas 'usuarios' y 'publicaciones'
+- Next.js 16 (App Router)
+- React 19
+- TypeScript
+- Tailwind CSS
+- Supabase JS + Supabase SSR
+- lucide-react
+- ESLint + Next.js lint rules
+
+## Scripts disponibles
+
+```bash
+npm install
+npm run dev
+npm run build
+npm run lint
 ```
 
----
+## Estructura principal
 
-## Configuración e Instalación Local
+```text
+.
+├── src/
+│   ├── app/
+│   │   ├── api/
+│   │   │   └── publicaciones/
+│   │   │       ├── route.ts
+│   │   │       └── [id]/
+│   │   │           └── sello/
+│   │   │               └── route.ts
+│   │   ├── auth/
+│   │   │   └── page.tsx
+│   │   ├── dashboard/
+│   │   │   └── page.tsx
+│   │   ├── login/
+│   │   │   └── page.tsx
+│   │   ├── globals.css
+│   │   ├── layout.tsx
+│   │   └── page.tsx
+│   ├── components/
+│   │   ├── auth/
+│   │   │   └── LoginForm.tsx
+│   │   └── dashboard/
+│   │       ├── MuroDashboard.tsx
+│   │       ├── Navbar.tsx
+│   │       ├── NuevaPublicacionModal.tsx
+│   │       └── PublicacionCard.tsx
+│   ├── lib/
+│   │   ├── security/
+│   │   │   └── validation.ts
+│   │   └── supabase/
+│   │       ├── actions.ts
+│   │       ├── client.ts
+│   │       ├── mockData.ts
+│   │       ├── server-actions.ts
+│   │       └── server.ts
+│   ├── proxy.ts
+│   └── types/
+│       └── inacadt.ts
+├── supabase/
+│   └── schema.sql
+├── public/
+├── package.json
+├── tsconfig.json
+├── next.config.ts
+├── eslint.config.mjs
+├── postcss.config.mjs
+└── README.md
+```
 
-1. **Configurar variables de entorno**:
-   Copia `.env.example` a `.env.local` e ingresa las credenciales de tu proyecto Supabase:
-   ```env
-   NEXT_PUBLIC_SUPABASE_URL=https://tu-proyecto.supabase.co
-   NEXT_PUBLIC_SUPABASE_ANON_KEY=tu-anon-key-publica
-   ```
+## Funcionalidades implementadas
 
-2. **Inicializar Base de Datos en Supabase**:
-   Ejecuta el contenido de `supabase/schema.sql` en el **SQL Editor** de tu panel de Supabase para crear las tablas `usuarios` y `publicaciones`.
+### Autenticación
 
-3. **Ejecutar el servidor de desarrollo**:
-   ```bash
-   npm run dev
-   ```
-   Abre `http://localhost:3000` en tu navegador.
+- login con correo y contraseña
+- soporte a Supabase Auth cuando las variables de entorno están configuradas
+- fallback de usuarios demo para ejecutarse en local sin backend
+- sesión persistida en cookies y almacenamiento local para la validación de acceso
+
+### Muro de publicaciones
+
+- listado de publicaciones con título, contenido, categoría y complejidad
+- filtro por texto, categoría y nivel de complejidad
+- opción para mostrar solo publicaciones con sello de profesor
+- carga de datos iniciales de ejemplo si la base aún está vacía
+- creación de nuevas publicaciones desde el frontend
+
+### Roles y permisos
+
+- reconocimiento de usuario con rol Profesor o Estudiante
+- visualización de estado del usuario en la barra superior
+- acción para otorgar sello de profesor a una publicación si el usuario autenticado tiene permisos
+
+### Seguridad
+
+- validación de credenciales y contenido de las publicaciones
+- sanitización de text input antes de guardar o mostrar
+- protección de rutas privadas con redirección a /login
+- cabeceras HTTP de seguridad en el proxy
+
+## Configuración de entorno
+
+Crear un archivo `.env.local` en la raíz del proyecto con las siguientes variables:
+
+```env
+NEXT_PUBLIC_SUPABASE_URL=https://tu-proyecto.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=tu-anon-key-publica
+```
+
+Si estas variables no existen, la aplicación sigue funcionando en modo demostración local con usuarios de ejemplo.
+
+## Base de datos
+
+El esquema SQL esperado para Supabase está en `supabase/schema.sql`.
+
+Incluye tablas para:
+
+- usuarios
+- publicaciones
+
+Se recomienda ejecutar ese script en el SQL Editor de Supabase antes de usar la app en modo real con autenticación y persistencia de datos.
+
+## Ejecución local
+
+1. Instala dependencias:
+
+```bash
+npm install
+```
+
+2. Inicia el proyecto:
+
+```bash
+npm run dev
+```
+
+3. Abre la aplicación en:
+
+```text
+http://localhost:3000
+```
+
+## Rutas relevantes
+
+- `/login`: pantalla principal de acceso
+- `/dashboard`: muro protegido de publicaciones
+- `/`: redirección hacia `/login`
+
+## Notas del proyecto
+
+Este es un prototipo funcional para demostrar el flujo principal de una red académica universitaria: autenticación, publicación, filtrado, validación de roles y seguridad básica de acceso.
+
+La lógica de negocio y las interfaces están preparadas para ampliarse con mejor persistencia real, APIs más avanzadas y flujo completo de administración académica.
