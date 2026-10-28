@@ -1,0 +1,28 @@
+@import "tailwindcss";
+
+:root {
+  --background: #f8fafc;
+  --foreground: #0f172a;
+  --institutional-red: #991b1b;
+  --institutional-red-dark: #7f1d1d;
+  --institutional-gray: #334155;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+body {
+  background-color: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-geist-sans), system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+
+/* RNF03: Accesibilidad WCAG 2.1 AA - Indicadores de foco claramente visibles para navegación por teclado */
+*:focus-visible {
+  outline: 3px solid #991b1b;
+  outline-offset: 2px;
+}
