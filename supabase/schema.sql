@@ -46,30 +46,40 @@ CREATE TRIGGER on_auth_user_created
   AFTER INSERT ON auth.users
   FOR EACH ROW EXECUTE FUNCTION public.handle_new_auth_user();
 
--- 4. Habilitar Row Level Security (Seguridad OWASP en Base de Datos)
+-- 4. Habilitar Row Level Security (Seguridad OWASP en Base de Datos) y Permisos de Rol
 ALTER TABLE public.usuarios ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.publicaciones ENABLE ROW LEVEL SECURITY;
+
+GRANT USAGE ON SCHEMA public TO anon, authenticated;
+GRANT SELECT, INSERT, UPDATE ON TABLE public.usuarios TO authenticated;
+GRANT SELECT ON TABLE public.publicaciones TO anon, authenticated;
+GRANT INSERT, UPDATE ON TABLE public.publicaciones TO authenticated;
 
 -- Políticas de lectura y escritura para usuarios autenticados
 CREATE POLICY "Lectura de usuarios para autenticados"
   ON public.usuarios FOR SELECT
+  TO authenticated
   USING (true);
 
 CREATE POLICY "Inserción/Actualización de propio perfil"
   ON public.usuarios FOR ALL
+  TO authenticated
   USING (auth.uid() = id)
   WITH CHECK (auth.uid() = id);
 
 CREATE POLICY "Lectura de publicaciones del muro"
   ON public.publicaciones FOR SELECT
+  TO anon, authenticated
   USING (true);
 
-CREATE POLICY "Crear publicaciones en el muro"
+CREATE POLICY "Crear publicaciones en el muro (RLS estricto auth.uid() = autor_id)"
   ON public.publicaciones FOR INSERT
-  WITH CHECK (true);
+  TO authenticated
+  WITH CHECK (auth.uid() = autor_id);
 
 CREATE POLICY "Actualizar Sello de Profesor (RF08)"
   ON public.publicaciones FOR UPDATE
+  TO authenticated
   USING (true)
   WITH CHECK (true);
 

@@ -28,13 +28,13 @@ export default function Navbar({
 
   return (
     <header className="sticky top-0 z-30 border-b border-slate-300 bg-white shadow-sm">
-      {/* Franja superior institucional en Rojo Oscuro (WCAG AA contraste > 8:1 con blanco) */}
+      {/* Franja superior institucional */}
       <div className="bg-red-900 text-white">
         <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-2 px-4 py-1.5 text-xs sm:px-6 lg:px-8">
           <div className="flex items-center gap-2 font-medium">
             <ShieldCheck className="h-3.5 w-3.5 shrink-0 text-red-200" aria-hidden="true" />
             <span>
-              Portal Académico INACADT · Estándar Accesibilidad WCAG 2.1 AA &amp; Seguridad OWASP
+              Portal Académico INACADT · Comunidad de aprendizaje y colaboración
             </span>
           </div>
           <div className="flex items-center gap-3">
@@ -42,12 +42,12 @@ export default function Navbar({
               className="inline-flex items-center gap-1.5 rounded bg-red-950/80 px-2 py-0.5 text-[11px] font-medium text-red-100 border border-red-700"
               title={
                 dataSource === 'supabase'
-                  ? 'Conectado en vivo a Supabase PostgreSQL'
-                  : 'Modo demostrativo activo (Respaldo local sincronizado)'
+                  ? 'Servicio institucional disponible'
+                  : 'Modo demostración activo'
               }
             >
               <Database className="h-3 w-3 text-red-200" aria-hidden="true" />
-              {dataSource === 'supabase' ? 'Supabase DB Activo' : 'Entorno Prototipo'}
+              {dataSource === 'supabase' ? 'Servicio activo' : 'Modo demostración'}
             </span>
           </div>
         </div>
@@ -70,7 +70,7 @@ export default function Navbar({
                   INACADT
                 </span>
                 <span className="rounded bg-slate-200 px-2 py-0.5 text-xs font-bold text-slate-800">
-                  Evaluación 3
+                  Comunidad
                 </span>
               </div>
               <p className="text-xs font-medium text-slate-600">
@@ -93,7 +93,7 @@ export default function Navbar({
             + Publicar Clasificado
           </button>
 
-          {/* Tarjeta de Rol de Usuario leído desde tabla 'usuarios' */}
+          {/* Perfil de la persona conectada */}
           <div
             className="flex items-center gap-2.5 rounded-lg border border-slate-300 bg-slate-100 px-3 py-1.5"
             aria-label={`Usuario conectado: ${usuario.nombre}, Rol: ${usuario.rol}`}
@@ -111,7 +111,7 @@ export default function Navbar({
               )}
             </div>
             <div className="text-left leading-tight">
-              <p className="max-w-[160px] truncate text-xs font-bold text-slate-900">
+              <p className="max-w-40 truncate text-xs font-bold text-slate-900">
                 {usuario.nombre}
               </p>
               <div className="flex items-center gap-1.5 mt-0.5">

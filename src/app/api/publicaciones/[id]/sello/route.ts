@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createServerSupabaseClient, isSupabaseConfigured } from '@/lib/supabase/client';
+import { isSupabaseConfigured } from '@/lib/supabase/client';
+import { createSupabaseServerClient } from '@/lib/supabase/server';
 import { isValidResourceId } from '@/lib/security/validation';
 import type { ApiResponse, Publicacion, RolUsuario } from '@/types/inacadt';
 
@@ -38,7 +39,7 @@ async function handleOtorgarSello(
     try {
       body = await request.json();
     } catch {
-      // Body opcional si viene solo por token
+      // Body opcional si viene solo por cookies/token
     }
 
     const authHeader = request.headers.get('authorization');
@@ -50,19 +51,20 @@ async function handleOtorgarSello(
     const isDemoId = id.startsWith('pub-');
 
     if (isSupabaseConfigured() && !isDemoId) {
-      const supabaseServer = createServerSupabaseClient(accessToken);
+      const supabaseServer = await createSupabaseServerClient(accessToken);
 
       let verifiedRole: string | null = null;
       let userIdToLookup = body.usuarioId;
       let userEmailToLookup = body.usuarioEmail;
 
-      // Si hay token de sesión de Supabase Auth, obtenemos el usuario autenticado
-      if (accessToken) {
-        const { data: authData } = await supabaseServer.auth.getUser(accessToken);
-        if (authData?.user) {
-          userIdToLookup = authData.user.id;
-          userEmailToLookup = authData.user.email ?? userEmailToLookup;
-        }
+      // Obtener usuario autenticado explícitamente con supabaseServer.auth.getUser()
+      const {
+        data: { user: authUser },
+      } = await supabaseServer.auth.getUser();
+
+      if (authUser) {
+        userIdToLookup = authUser.id;
+        userEmailToLookup = authUser.email ?? userEmailToLookup;
       }
 
       // Consultar rol en la tabla 'usuarios' de Supabase (por ID o por email)
@@ -90,7 +92,6 @@ async function handleOtorgarSello(
         }
       }
 
-      // Fallback al rol reportado si la tabla tiene políticas RLS específicas
       const effectiveRole = verifiedRole || body.rol || '';
 
       if (effectiveRole.trim().toLowerCase() !== 'profesor') {
@@ -181,4 +182,3 @@ export async function POST(
 ) {
   return handleOtorgarSello(request, context);
 }
-

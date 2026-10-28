@@ -1,4 +1,5 @@
 import { supabase, isSupabaseConfigured } from '@/lib/supabase/client';
+import { crearPublicacionServerAction } from '@/lib/supabase/server-actions';
 import { DEMO_USERS, INITIAL_PUBLICACIONES } from '@/lib/supabase/mockData';
 import {
   validateLoginCredentials,
@@ -17,17 +18,28 @@ import {
 const STORAGE_USER_KEY = 'inacadt_active_user';
 const STORAGE_PUBLICACIONES_KEY = 'inacadt_local_publicaciones';
 const AUTH_COOKIE_NAME = 'inacadt_session';
+const TOKEN_COOKIE_NAME = 'sb-access-token';
 
 /**
- * Establece o elimina la cookie de sesión para protección de rutas privadas en Proxy/Middleware
+ * Establece o elimina las cookies de sesión para protección de rutas privadas y Server Actions (RLS)
  */
-function setSessionCookie(active: boolean, rol?: RolUsuario) {
+function setSessionCookie(
+  active: boolean,
+  rol?: RolUsuario,
+  accessToken?: string
+) {
   if (typeof document === 'undefined') return;
   if (active) {
-    const value = encodeURIComponent(JSON.stringify({ authenticated: true, rol: rol || 'Estudiante' }));
+    const value = encodeURIComponent(
+      JSON.stringify({ authenticated: true, rol: rol || 'Estudiante' })
+    );
     document.cookie = `${AUTH_COOKIE_NAME}=${value}; path=/; max-age=86400; SameSite=Lax`;
+    if (accessToken) {
+      document.cookie = `${TOKEN_COOKIE_NAME}=${accessToken}; path=/; max-age=86400; SameSite=Lax`;
+    }
   } else {
     document.cookie = `${AUTH_COOKIE_NAME}=; path=/; max-age=0; SameSite=Lax`;
+    document.cookie = `${TOKEN_COOKIE_NAME}=; path=/; max-age=0; SameSite=Lax`;
   }
 }
 
@@ -102,7 +114,7 @@ export async function obtenerRolDesdeTablaUsuarios(
       rol = normalizeRol(byEmail.rol);
       nombre = byEmail.nombre || byEmail.nombre_completo || byEmail.email || nombre;
       return {
-        id: String(byEmail.id || userId),
+        id: userId, // Mantener siempre el auth.uid() real para cumplir políticas RLS (autor_id = auth.uid())
         email: String(byEmail.email || email),
         nombre: String(nombre),
         rol,
@@ -158,32 +170,65 @@ export async function iniciarSesionSupabase(
 
       if (typeof window !== 'undefined') {
         localStorage.setItem(STORAGE_USER_KEY, JSON.stringify(perfil));
-        setSessionCookie(true, perfil.rol);
+        setSessionCookie(true, perfil.rol, data.session?.access_token);
       }
 
       return { ok: true, user: perfil, mode: 'supabase' };
     }
 
-    // Si el usuario ingresó las credenciales institucionales de prueba para demostración
+    // Si presionó el botón de acceso rápido de demostración con Supabase activo y el usuario aún no existe en Auth, intentar registrarlo en Supabase Auth para tener un auth.uid() real
     if (DEMO_USERS[email] && passwordInput === 'Inacadt2026!') {
-      const demoUser = DEMO_USERS[email];
-      if (typeof window !== 'undefined') {
-        localStorage.setItem(STORAGE_USER_KEY, JSON.stringify(demoUser));
-        setSessionCookie(true, demoUser.rol);
+      const demoConfig = DEMO_USERS[email];
+      const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+        email,
+        password: passwordInput,
+        options: {
+          data: {
+            nombre: demoConfig.nombre,
+            rol: demoConfig.rol,
+          },
+        },
+      });
+
+      if (!signUpError && signUpData.user && signUpData.session) {
+        await supabase.from('usuarios').upsert(
+          [
+            {
+              id: signUpData.user.id,
+              email,
+              nombre: demoConfig.nombre,
+              rol: demoConfig.rol,
+            },
+          ],
+          { onConflict: 'id' }
+        );
+
+        const realDemoUser: Usuario = {
+          id: signUpData.user.id,
+          email,
+          nombre: demoConfig.nombre,
+          rol: demoConfig.rol,
+        };
+
+        if (typeof window !== 'undefined') {
+          localStorage.setItem(STORAGE_USER_KEY, JSON.stringify(realDemoUser));
+          setSessionCookie(true, realDemoUser.rol, signUpData.session.access_token);
+        }
+
+        return { ok: true, user: realDemoUser, mode: 'supabase' };
       }
-      return { ok: true, user: demoUser, mode: 'demo' };
     }
 
     return {
       ok: false,
       error:
         error?.message === 'Invalid login credentials'
-          ? 'Correo o contraseña incorrectos en Supabase Auth.'
+          ? 'Correo o contraseña incorrectos en Supabase Auth. Ingresa con un usuario registrado en tu proyecto Supabase o regístrate en la pestaña "Registrar Cuenta en Supabase".'
           : error?.message || 'No fue posible iniciar sesión con Supabase Auth.',
     };
   }
 
-  // 3. Modo Prototipo Local (cuando aún no se configura .env.local)
+  // 3. Modo Prototipo Local (solo cuando NO están configuradas las variables de entorno de Supabase)
   const demoMatch = DEMO_USERS[email];
   if (demoMatch) {
     if (typeof window !== 'undefined') {
@@ -193,7 +238,6 @@ export async function iniciarSesionSupabase(
     return { ok: true, user: demoMatch, mode: 'demo' };
   }
 
-  // Si ingresa cualquier correo válido en modo sin .env.local, asigna rol según correo
   const inferredRol: RolUsuario =
     email.includes('profesor') || email.includes('docente') ? 'Profesor' : 'Estudiante';
 
@@ -294,7 +338,7 @@ export async function registrarUsuarioSupabase(params: {
 
   if (typeof window !== 'undefined') {
     localStorage.setItem(STORAGE_USER_KEY, JSON.stringify(nuevoUsuario));
-    setSessionCookie(true, nuevoUsuario.rol);
+    setSessionCookie(true, nuevoUsuario.rol, data.session?.access_token);
   }
 
   return {
@@ -305,12 +349,16 @@ export async function registrarUsuarioSupabase(params: {
 }
 
 /**
- * Obtiene la sesión actual del usuario (protección de ruta privada /dashboard)
+ * Obtiene la sesión actual del usuario verificando explícitamente supabase.auth.getUser()
  */
 export async function obtenerSesionActual(): Promise<Usuario | null> {
   if (isSupabaseConfigured()) {
-    const { data } = await supabase.auth.getSession();
-    const sessionUser = data.session?.user;
+    const {
+      data: { user: authUser },
+    } = await supabase.auth.getUser();
+
+    const { data: sessionData } = await supabase.auth.getSession();
+    const sessionUser = authUser ?? sessionData.session?.user;
 
     if (sessionUser) {
       const metaRol =
@@ -325,10 +373,17 @@ export async function obtenerSesionActual(): Promise<Usuario | null> {
 
       if (typeof window !== 'undefined') {
         localStorage.setItem(STORAGE_USER_KEY, JSON.stringify(perfil));
-        setSessionCookie(true, perfil.rol);
+        setSessionCookie(true, perfil.rol, sessionData.session?.access_token);
       }
       return perfil;
     }
+
+    // Si Supabase está configurado pero no hay sesión real en Supabase Auth, limpiar cualquier sesión demo residual para evitar errores RLS (auth.uid() nulo)
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem(STORAGE_USER_KEY);
+      setSessionCookie(false);
+    }
+    return null;
   }
 
   if (typeof window !== 'undefined') {
@@ -377,14 +432,12 @@ export async function obtenerPublicacionesMuro(): Promise<{
       const normalized = data.map((row, idx) =>
         normalizePublicacion(row as Record<string, unknown>, idx)
       );
-      // Ordenar mostrando primero las más recientes o destacadas
       return {
         publicaciones: normalized,
         source: 'supabase',
       };
     }
 
-    // Si hubo un error en la tabla (p. ej. aún no se ejecuta el script SQL), usar respaldo local e informar
     const localFallback = obtenerPublicacionesLocales();
     return {
       publicaciones: localFallback,
@@ -414,12 +467,13 @@ function obtenerPublicacionesLocales(): Publicacion[] {
 }
 
 /**
- * RF03: Crear una nueva publicación en el muro
+ * RF03: Crear una nueva publicación en el muro cumpliendo RLS estricto (auth.uid() = autor_id)
  */
 export async function crearPublicacionMuro(
   input: NuevaPublicacionInput,
   usuarioActual: Usuario
 ): Promise<{ ok: boolean; data?: Publicacion; error?: string }> {
+  // 1. Validación OWASP en el cliente
   const validation = validatePublicacionInput(input);
   if (!validation.valid || !validation.sanitizedData) {
     const firstErr =
@@ -432,43 +486,90 @@ export async function crearPublicacionMuro(
     return { ok: false, error: firstErr };
   }
 
-  let accessToken: string | undefined;
   if (isSupabaseConfigured()) {
-    const { data } = await supabase.auth.getSession();
-    accessToken = data.session?.access_token;
-  }
+    // 2. Obtener explícitamente el ID del usuario autenticado con supabase.auth.getUser()
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser();
 
-  const response = await fetch('/api/publicaciones', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
-    },
-    body: JSON.stringify({
-      ...validation.sanitizedData,
-      autor_nombre: usuarioActual.nombre,
-    }),
-  });
+    if (authError || !user) {
+      return {
+        ok: false,
+        error:
+          'No se pudo verificar tu sesión en Supabase Auth (auth.uid() requerido por RLS). Por favor, cierra sesión y vuelve a ingresar.',
+      };
+    }
 
-  const result = await response.json();
+    // Obtener token de sesión actual y sincronizar cookie de servidor
+    const { data: sessionData } = await supabase.auth.getSession();
+    const accessToken = sessionData.session?.access_token;
+    if (accessToken) {
+      setSessionCookie(true, usuarioActual.rol, accessToken);
+    }
 
-  if (!response.ok || !result.ok) {
-    return {
-      ok: false,
-      error: result.error || 'No se pudo publicar en el muro.',
+    // 3. Invocar la Server Action que utiliza createServerClient con las cookies del servidor
+    // y fuerza autor_id = user.id tras verificar supabase.auth.getUser()
+    const serverResult = await crearPublicacionServerAction(
+      validation.sanitizedData,
+      accessToken
+    );
+
+    if (serverResult.ok && serverResult.data) {
+      const nuevaPub = normalizePublicacion(
+        serverResult.data as unknown as Record<string, unknown>
+      );
+      return { ok: true, data: nuevaPub };
+    }
+
+    // 4. Respaldo directo con el cliente autenticado forzando autor_id === user.id
+    const payloadConAutor = {
+      titulo: validation.sanitizedData.titulo,
+      contenido: validation.sanitizedData.contenido,
+      categoria: validation.sanitizedData.categoria,
+      complejidad: validation.sanitizedData.complejidad,
+      posee_sello_profesor: false,
+      autor_id: user.id, // Forzado explícitamente al ID devuelto por supabase.auth.getUser()
     };
+
+    const { data: directData, error: directError } = await supabase
+      .from('publicaciones')
+      .insert([payloadConAutor])
+      .select('*')
+      .single();
+
+    if (directError) {
+      return {
+        ok: false,
+        error:
+          serverResult.error ||
+          `Error al insertar en Supabase: ${directError.message}`,
+      };
+    }
+
+    const nuevaPubDirecta = normalizePublicacion(
+      directData as Record<string, unknown>
+    );
+    return { ok: true, data: nuevaPubDirecta };
   }
 
-  const nuevaPub = normalizePublicacion(result.data);
+  // Modo demostración local sin Supabase configurado
+  const mockPub: Publicacion = {
+    id: `pub-${Date.now()}`,
+    ...validation.sanitizedData,
+    posee_sello_profesor: false,
+    autor_id: usuarioActual.id,
+    autor_nombre: usuarioActual.nombre,
+    created_at: new Date().toISOString(),
+  };
 
-  // Actualizar copia local también por si se usa en modo demostración
   if (typeof window !== 'undefined') {
     const actuales = obtenerPublicacionesLocales();
-    const actualizadas = [nuevaPub, ...actuales];
+    const actualizadas = [mockPub, ...actuales];
     localStorage.setItem(STORAGE_PUBLICACIONES_KEY, JSON.stringify(actualizadas));
   }
 
-  return { ok: true, data: nuevaPub };
+  return { ok: true, data: mockPub };
 }
 
 /**
@@ -556,12 +657,25 @@ export async function cargarDatosEjemploEnSupabase(): Promise<{
     return { ok: true };
   }
 
+  const {
+    data: { user },
+    error: authError,
+  } = await supabase.auth.getUser();
+
+  if (authError || !user) {
+    return {
+      ok: false,
+      error: 'Debes estar autenticado en Supabase para cargar datos de ejemplo.',
+    };
+  }
+
   const payload = INITIAL_PUBLICACIONES.map((pub) => ({
     titulo: pub.titulo,
     contenido: pub.contenido,
     categoria: pub.categoria,
     complejidad: pub.complejidad,
     posee_sello_profesor: pub.posee_sello_profesor,
+    autor_id: user.id,
   }));
 
   const { error } = await supabase.from('publicaciones').insert(payload);
@@ -570,4 +684,3 @@ export async function cargarDatosEjemploEnSupabase(): Promise<{
   }
   return { ok: true };
 }
-

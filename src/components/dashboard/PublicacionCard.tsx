@@ -22,9 +22,6 @@ interface PublicacionCardProps {
   onOtorgarSello: (id: string) => Promise<void>;
 }
 
-/**
- * Estilos de alto contraste (WCAG AA >= 4.5:1) para los niveles de complejidad (RF03/RF04)
- */
 const COMPLEJIDAD_STYLES: Record<
   ComplejidadPublicacion,
   { badgeClass: string; label: string }
@@ -74,7 +71,6 @@ export default function PublicacionCard({
           : 'border border-slate-300 shadow-sm hover:border-slate-400 hover:shadow-md'
       }`}
     >
-      {/* RF03/RF04: Banda superior destacada visualmente cuando posee el Sello de Profesor */}
       {tieneSello ? (
         <div
           className="flex items-center justify-between rounded-t-[10px] bg-red-900 px-4 py-2 text-white"
@@ -132,7 +128,6 @@ export default function PublicacionCard({
         )}
       </div>
 
-      {/* Pie de tarjeta: Estado del Sello y Acción Crítica RF08 para Rol 'Profesor' */}
       <div
         className={`flex flex-wrap items-center justify-between gap-3 border-t px-5 py-3.5 rounded-b-xl ${
           tieneSello
@@ -154,7 +149,6 @@ export default function PublicacionCard({
           )}
         </div>
 
-        {/* RF08: Si el usuario logueado tiene el rol de 'Profesor', mostrar botón "Otorgar Sello" */}
         {esProfesor && !tieneSello && (
           <button
             type="button"
@@ -171,7 +165,7 @@ export default function PublicacionCard({
             ) : (
               <>
                 <Award className="h-4 w-4 text-amber-200" aria-hidden="true" />
-                <span>Otorgar Sello</span>
+                <span>Otorgar Sello de Profesor</span>
               </>
             )}
           </button>

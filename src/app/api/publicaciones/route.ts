@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createServerSupabaseClient, isSupabaseConfigured } from '@/lib/supabase/client';
+import { isSupabaseConfigured } from '@/lib/supabase/client';
+import { createSupabaseServerClient } from '@/lib/supabase/server';
 import { INITIAL_PUBLICACIONES } from '@/lib/supabase/mockData';
 import { validatePublicacionInput } from '@/lib/security/validation';
 import type { ApiResponse, Publicacion } from '@/types/inacadt';
@@ -17,7 +18,7 @@ export async function GET(): Promise<NextResponse<ApiResponse<Publicacion[]>>> {
   }
 
   try {
-    const supabaseServer = createServerSupabaseClient();
+    const supabaseServer = await createSupabaseServerClient();
     const { data, error } = await supabaseServer
       .from('publicaciones')
       .select('*');
@@ -50,7 +51,7 @@ export async function GET(): Promise<NextResponse<ApiResponse<Publicacion[]>>> {
 }
 
 /**
- * RF03: Crear una nueva publicación en el muro con validación OWASP
+ * RF03: Crear una nueva publicación en el muro con validación OWASP y RLS estricto (auth.uid() = autor_id)
  */
 export async function POST(
   request: NextRequest
@@ -88,18 +89,39 @@ export async function POST(
       : undefined;
 
     if (isSupabaseConfigured()) {
-      const supabaseServer = createServerSupabaseClient(accessToken);
+      // 1. Cliente de servidor con las cookies de sesión del usuario inyectadas
+      const supabaseServer = await createSupabaseServerClient(accessToken);
+
+      // 2. Obtener explícitamente el usuario autenticado llamando a supabase.auth.getUser()
+      const {
+        data: { user },
+        error: authError,
+      } = await supabaseServer.auth.getUser();
+
+      if (authError || !user) {
+        return NextResponse.json(
+          {
+            ok: false,
+            error:
+              'No autorizado: Se requiere una sesión activa en Supabase Auth para insertar publicaciones (RLS auth.uid()).',
+          },
+          { status: 401 }
+        );
+      }
+
+      // 3. Forzar que autor_id coincida exactamente con el ID devuelto por getUser()
+      const nuevaPublicacion = {
+        titulo: validation.sanitizedData.titulo,
+        contenido: validation.sanitizedData.contenido,
+        categoria: validation.sanitizedData.categoria,
+        complejidad: validation.sanitizedData.complejidad,
+        posee_sello_profesor: false,
+        autor_id: user.id,
+      };
+
       const { data, error } = await supabaseServer
         .from('publicaciones')
-        .insert([
-          {
-            titulo: validation.sanitizedData.titulo,
-            contenido: validation.sanitizedData.contenido,
-            categoria: validation.sanitizedData.categoria,
-            complejidad: validation.sanitizedData.complejidad,
-            posee_sello_profesor: false,
-          },
-        ])
+        .insert([nuevaPublicacion])
         .select('*')
         .single();
 
@@ -150,4 +172,3 @@ export async function POST(
     );
   }
 }
-

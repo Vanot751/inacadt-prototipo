@@ -43,13 +43,11 @@ export default function MuroDashboard() {
   const [cargandoMuro, setCargandoMuro] = useState(true);
   const [dataSource, setDataSource] = useState<'supabase' | 'local'>('local');
 
-  // Filtros del Muro (RF04)
   const [busqueda, setBusqueda] = useState('');
   const [filtroCategoria, setFiltroCategoria] = useState('Todas');
   const [filtroComplejidad, setFiltroComplejidad] = useState('Todas');
   const [soloConSello, setSoloConSello] = useState(false);
 
-  // Modal Nueva Publicación (RF03)
   const [modalAbierto, setModalAbierto] = useState(false);
 
   // Notificaciones accesibles (ARIA live)
@@ -93,14 +91,12 @@ export default function MuroDashboard() {
     };
   }, [router, cargarMuro]);
 
-  // Cierre de sesión (RF01)
   const handleLogout = async () => {
     await cerrarSesionSupabase();
     router.replace('/login');
     router.refresh();
   };
 
-  // RF08 - Funcionalidad Crítica: Otorgar Sello de Profesor mediante la API
   const handleOtorgarSello = async (publicacionId: string) => {
     if (!usuario) return;
     setNotificacion(null);
@@ -128,11 +124,10 @@ export default function MuroDashboard() {
       tipo: 'exito',
       mensaje:
         resultado.message ||
-        'Sello de Profesor otorgado exitosamente (posee_sello_profesor = true).',
+        'Sello de Profesor otorgado exitosamente.',
     });
   };
 
-  // RF03: Crear nueva publicación
   const handleCrearPublicacion = async (input: NuevaPublicacionInput) => {
     if (!usuario) return { ok: false, error: 'Sesión no válida.' };
     const res = await crearPublicacionMuro(input, usuario);
@@ -175,7 +170,6 @@ export default function MuroDashboard() {
     return ['Todas', ...Array.from(setCats)];
   }, [publicaciones]);
 
-  // Filtrado de publicaciones (RF04)
   const publicacionesFiltradas = useMemo(() => {
     const terminoLimpio = sanitizeText(busqueda).toLowerCase();
 
@@ -227,7 +221,7 @@ export default function MuroDashboard() {
           aria-hidden="true"
         />
         <p className="text-sm font-bold text-slate-800">
-          Verificando sesión segura y permisos en Supabase...
+          Verificando tu sesión...
         </p>
       </div>
     );
@@ -248,7 +242,7 @@ export default function MuroDashboard() {
         id="main-content"
         className="mx-auto w-full max-w-7xl flex-1 px-4 py-8 sm:px-6 lg:px-8"
       >
-        {/* Banner contextual de Rol e Instrucciones RF08 */}
+        {/* Resumen del muro */}
         <section
           aria-label="Resumen del Muro de Conocimiento"
           className="mb-8 rounded-2xl border border-slate-300 bg-white p-6 shadow-xs"
@@ -257,7 +251,7 @@ export default function MuroDashboard() {
             <div>
               <div className="mb-2 inline-flex items-center gap-2 rounded-md bg-red-50 px-3 py-1 text-xs font-bold text-red-900 border border-red-200">
                 <Sparkles className="h-3.5 w-3.5 text-red-800" aria-hidden="true" />
-                <span>Muro de Clasificados Universitarios (RF03 / RF04 / RF08)</span>
+                <span>Muro de publicaciones universitarias</span>
               </div>
               <h1 className="text-2xl font-extrabold tracking-tight text-slate-900 sm:text-3xl">
                 Intercambio de Conocimiento Académico
@@ -267,9 +261,8 @@ export default function MuroDashboard() {
                   <>
                     Has iniciado sesión con el rol de{' '}
                     <strong className="font-bold text-red-900">Profesor</strong>{' '}
-                    (verificado en tabla <code className="rounded bg-slate-100 px-1 py-0.5 font-mono text-xs">usuarios</code>).
-                    Puedes validar publicaciones académicas haciendo clic en el
-                    botón <strong>&quot;Otorgar Sello&quot;</strong> de cada tarjeta.
+                    . Puedes validar publicaciones académicas haciendo clic en el
+                    botón <strong>&quot;Otorgar Sello de Profesor&quot;</strong> de cada tarjeta.
                   </>
                 ) : (
                   <>
@@ -305,7 +298,7 @@ export default function MuroDashboard() {
 
               <div className="col-span-2 rounded-xl border border-slate-300 bg-slate-900 px-4 py-3 text-center text-white sm:col-span-1">
                 <p className="text-xs font-medium text-slate-300">
-                  Permiso RF08
+                  Acceso de profesor
                 </p>
                 <p className="mt-0.5 text-sm font-bold">
                   {esProfesor ? 'Habilitado (Docente)' : 'Solo Lectura'}
@@ -350,7 +343,7 @@ export default function MuroDashboard() {
           </div>
         )}
 
-        {/* Barra de Búsqueda y Filtros (RF04) */}
+        {/* Barra de búsqueda y filtros */}
         <section
           aria-label="Filtros de búsqueda de publicaciones"
           className="mb-6 rounded-xl border border-slate-300 bg-white p-4 shadow-xs"
@@ -374,7 +367,7 @@ export default function MuroDashboard() {
                   type="search"
                   value={busqueda}
                   onChange={(e) => setBusqueda(e.target.value)}
-                  placeholder="Ej: Docker, SQL, OWASP, WCAG..."
+                  placeholder="Ej: liderazgo, programación, innovación..."
                   maxLength={80}
                   className="w-full rounded-lg border border-slate-300 bg-slate-50 py-2 pr-3 pl-9 text-sm text-slate-900 placeholder:text-slate-500 focus:border-red-800 focus:bg-white"
                 />
@@ -449,7 +442,7 @@ export default function MuroDashboard() {
                 onClick={cargarMuro}
                 disabled={cargandoMuro}
                 aria-label="Actualizar publicaciones del muro"
-                title="Recargar publicaciones desde la base de datos"
+                title="Actualizar publicaciones"
                 className="inline-flex items-center justify-center rounded-lg border border-slate-300 bg-white p-2 text-slate-700 transition hover:bg-slate-100 hover:text-red-900 disabled:opacity-50"
               >
                 <RefreshCw
@@ -461,7 +454,7 @@ export default function MuroDashboard() {
           </div>
         </section>
 
-        {/* Listado de Tarjetas de Publicaciones (RF03 / RF04 / RF08) */}
+        {/* Listado de publicaciones */}
         {cargandoMuro ? (
           <div
             className="flex flex-col items-center justify-center rounded-2xl border border-slate-300 bg-white py-16 text-center"
@@ -496,7 +489,7 @@ export default function MuroDashboard() {
                   className="inline-flex items-center gap-2 rounded-lg bg-red-800 px-4 py-2.5 text-xs font-bold text-white shadow-xs transition hover:bg-red-900"
                 >
                   <PlusCircle className="h-4 w-4" aria-hidden="true" />
-                  <span>Cargar Publicaciones de Ejemplo en Base de Datos</span>
+                  <span>Cargar publicaciones de ejemplo</span>
                 </button>
               ) : (
                 <button
@@ -546,8 +539,7 @@ export default function MuroDashboard() {
             Universitario (Evaluación 3)
           </span>
           <span>
-            RNF03 (Identidad Institucional &amp; WCAG 2.1 AA) · Seguridad OWASP ·
-            Supabase
+            Tus datos están protegidos según las políticas de privacidad de la institución
           </span>
         </div>
       </footer>

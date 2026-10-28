@@ -48,7 +48,6 @@ export default function LoginForm() {
     setErrors({});
     setMensajeExito(null);
 
-    // Validación OWASP en el cliente
     const validation = validateLoginCredentials(email, password);
     if (!validation.valid) {
       setErrors(validation.errors);
@@ -124,7 +123,7 @@ export default function LoginForm() {
           </span>
           <span className="hidden sm:inline-flex items-center gap-1.5 font-medium text-red-100">
             <ShieldCheck className="h-3.5 w-3.5" aria-hidden="true" />
-            Cumplimiento RNF03 (WCAG 2.1 AA) &amp; Seguridad OWASP
+            Tus datos están protegidos según las políticas de privacidad de la institución
           </span>
         </div>
       </div>
@@ -171,7 +170,7 @@ export default function LoginForm() {
                     aria-hidden="true"
                   />
                   <span>
-                    <strong className="text-white">Sello de Profesor (RF08):</strong>{' '}
+                    <strong className="text-white">Sello de Profesor:</strong>{' '}
                     Los docentes validan académicamente las publicaciones
                     destacadas en tiempo real.
                   </span>
@@ -182,7 +181,7 @@ export default function LoginForm() {
                     aria-hidden="true"
                   />
                   <span>
-                    <strong className="text-white">Niveles de Complejidad (RF03/RF04):</strong>{' '}
+                    <strong className="text-white">Niveles de complejidad:</strong>{' '}
                     Clasificación estructurada en niveles Sencillo, Avanzado y
                     Asistido.
                   </span>
@@ -193,9 +192,8 @@ export default function LoginForm() {
                     aria-hidden="true"
                   />
                   <span>
-                    <strong className="text-white">Seguridad OWASP:</strong>{' '}
-                    Rutas privadas protegidas y sanitización activa contra
-                    inyecciones XSS y SQLi.
+                    <strong className="text-white">Privacidad:</strong>{' '}
+                    Tus datos se gestionan de acuerdo con las políticas de la institución.
                   </span>
                 </li>
               </ul>
@@ -203,17 +201,17 @@ export default function LoginForm() {
 
             <div className="mt-8 border-t border-red-800 pt-4 text-xs text-red-200">
               <p className="font-semibold text-white">
-                Estado de Integración Supabase:
+                Estado de la plataforma:
               </p>
               <p className="mt-0.5">
                 {supabaseActivo
-                  ? 'Conectado a instancia remota de Supabase Auth & PostgreSQL.'
-                  : 'Modo Prototipo Activo (Configure .env.local para conectar a su proyecto Supabase).'}
+                  ? 'Servicio institucional disponible.'
+                  : 'Modo demostración activo.'}
               </p>
             </div>
           </section>
 
-          {/* Panel derecho: Formulario de Autenticación (RF01) */}
+          {/* Formulario de acceso */}
           <section
             aria-labelledby="auth-heading"
             className="flex flex-col justify-center p-6 sm:p-10 lg:col-span-7"
@@ -233,7 +231,7 @@ export default function LoginForm() {
                     : 'text-slate-700 hover:text-slate-900'
                 }`}
               >
-                Iniciar Sesión (RF01)
+                Iniciar Sesión
               </button>
               <button
                 type="button"
@@ -248,7 +246,7 @@ export default function LoginForm() {
                     : 'text-slate-700 hover:text-slate-900'
                 }`}
               >
-                Registrar Cuenta en Supabase
+                Crear cuenta
               </button>
             </div>
 
@@ -263,8 +261,8 @@ export default function LoginForm() {
               </h2>
               <p className="mt-1 text-sm text-slate-600">
                 {modo === 'login'
-                  ? 'Ingresa tus credenciales de Supabase Auth para acceder al Muro de Publicaciones.'
-                  : 'Crea un usuario en Supabase Auth y asigna su rol en la tabla usuarios.'}
+                  ? 'Ingresa tus credenciales para acceder al Muro de Publicaciones.'
+                  : 'Crea tu cuenta para participar en la comunidad académica.'}
               </p>
             </div>
 
@@ -322,7 +320,7 @@ export default function LoginForm() {
                       htmlFor="auth-rol"
                       className="mb-1.5 block text-sm font-bold text-slate-900"
                     >
-                      Rol en Tabla &apos;usuarios&apos;
+                      Rol institucional
                     </label>
                     <select
                       id="auth-rol"
@@ -332,7 +330,7 @@ export default function LoginForm() {
                       }
                       className="w-full rounded-lg border border-slate-300 bg-white px-3.5 py-2.5 text-sm font-semibold text-slate-900 focus:border-red-800"
                     >
-                      <option value="Profesor">Profesor (Otorga Sello RF08)</option>
+                      <option value="Profesor">Profesor</option>
                       <option value="Estudiante">Estudiante</option>
                     </select>
                   </div>
@@ -458,7 +456,7 @@ export default function LoginForm() {
             {/* Panel de Acceso Rápido para Demostración de Evaluación 3 */}
             <div className="mt-7 rounded-xl border border-slate-300 bg-slate-50 p-4">
               <p className="mb-2.5 text-xs font-bold uppercase tracking-wider text-slate-700">
-                Credenciales Rápidas de Demostración (Evaluación 3)
+                Accesos de demostración
               </p>
               <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
                 <button
@@ -470,7 +468,7 @@ export default function LoginForm() {
                   className="flex items-center justify-center gap-2 rounded-lg border-2 border-red-800 bg-white px-3 py-2 text-xs font-bold text-red-900 transition hover:bg-red-50"
                 >
                   <Award className="h-4 w-4 text-red-800" aria-hidden="true" />
-                  <span>Entrar como Profesor (RF08)</span>
+                  <span>Entrar como Profesor</span>
                 </button>
 
                 <button
@@ -495,8 +493,7 @@ export default function LoginForm() {
 
       {/* Pie de página institucional */}
       <footer className="border-t border-slate-300 bg-white py-4 text-center text-xs font-medium text-slate-600">
-        INACADT · Prototipo Funcional Evaluación 3 · Ingeniería Informática ·
-        Next.js App Router, Tailwind CSS &amp; Supabase
+        INACADT · Comunidad Académica Universitaria · Ingeniería Informática
       </footer>
     </div>
   );

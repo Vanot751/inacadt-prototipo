@@ -57,7 +57,6 @@ export default function NuevaPublicacionModal({
     e.preventDefault();
     setErrors({});
 
-    // Validación OWASP en el cliente antes de enviar a la API
     const validation = validatePublicacionInput({
       titulo,
       contenido,
@@ -74,7 +73,9 @@ export default function NuevaPublicacionModal({
     try {
       const result = await onSubmit(validation.sanitizedData);
       if (!result.ok) {
-        setErrors({ general: result.error || 'Error al guardar la publicación.' });
+        setErrors({
+          general: result.error || 'Error al guardar la publicación en Supabase.',
+        });
       } else {
         setTitulo('');
         setContenido('');
@@ -82,6 +83,13 @@ export default function NuevaPublicacionModal({
         setComplejidad('Sencillo');
         onClose();
       }
+    } catch (err) {
+      setErrors({
+        general:
+          err instanceof Error
+            ? err.message
+            : 'Error inesperado al enviar la publicación.',
+      });
     } finally {
       setSubmitting(false);
     }
@@ -94,7 +102,7 @@ export default function NuevaPublicacionModal({
       aria-modal="true"
       aria-labelledby="modal-nueva-publicacion-titulo"
     >
-      <div className="w-full max-w-lg overflow-hidden rounded-xl border border-slate-300 bg-white shadow-2xl">
+      <div className="w-full max-w-lg overflow-hidden rounded-xl border border-slate-300 bg-white shadow-md">
         {/* Cabecera institucional */}
         <div className="flex items-center justify-between border-b border-red-900 bg-red-900 px-6 py-4 text-white">
           <div className="flex items-center gap-2.5">
@@ -103,7 +111,7 @@ export default function NuevaPublicacionModal({
               id="modal-nueva-publicacion-titulo"
               className="text-base font-bold"
             >
-              Publicar en el Muro de Conocimiento (RF03)
+              Nueva publicación
             </h2>
           </div>
           <button
@@ -142,7 +150,7 @@ export default function NuevaPublicacionModal({
               value={titulo}
               onChange={(e) => setTitulo(e.target.value)}
               maxLength={120}
-              placeholder="Ej: Ayudantía de Seguridad Web y Prevención de XSS"
+              placeholder="Ej: Taller de programación para principiantes"
               aria-invalid={Boolean(errors.titulo)}
               aria-describedby={errors.titulo ? 'err-pub-titulo' : undefined}
               className="w-full rounded-lg border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:border-red-800"
@@ -226,7 +234,7 @@ export default function NuevaPublicacionModal({
               className="w-full rounded-lg border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:border-red-800"
             />
             <div className="mt-1 flex items-center justify-between text-xs text-slate-600">
-              <span>Protegido contra inyección de scripts (OWASP)</span>
+              <span>Tus datos están protegidos según las políticas de privacidad de la institución</span>
               <span>{contenido.length}/1200</span>
             </div>
             {errors.contenido && (

@@ -1,3 +1,4 @@
+import { createBrowserClient } from '@supabase/ssr';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 
 const rawSupabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
@@ -25,22 +26,21 @@ const effectiveKey = isSupabaseConfigured()
   : 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.placeholder';
 
 /**
- * Cliente oficial de Supabase para operaciones en cliente y servidor
+ * Cliente oficial de Supabase con soporte de cookies (@supabase/ssr) para sincronizar
+ * la sesión entre cliente y servidor (RLS auth.uid()).
  */
-export const supabase: SupabaseClient = createClient(
-  effectiveUrl,
-  effectiveKey,
-  {
-    auth: {
-      persistSession: true,
-      autoRefreshToken: true,
-      detectSessionInUrl: true,
-    },
-  }
-);
+export const supabase: SupabaseClient =
+  typeof window !== 'undefined'
+    ? createBrowserClient(effectiveUrl, effectiveKey)
+    : createClient(effectiveUrl, effectiveKey, {
+        auth: {
+          persistSession: false,
+          autoRefreshToken: false,
+        },
+      });
 
 /**
- * Crea un cliente de Supabase con el token de acceso del usuario para rutas de API
+ * Crea un cliente de Supabase con el token de acceso del usuario inyectado explícitamente
  */
 export function createServerSupabaseClient(accessToken?: string): SupabaseClient {
   return createClient(effectiveUrl, effectiveKey, {
@@ -57,4 +57,3 @@ export function createServerSupabaseClient(accessToken?: string): SupabaseClient
     },
   });
 }
-
