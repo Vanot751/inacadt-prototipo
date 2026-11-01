@@ -139,7 +139,10 @@ Si estas variables no existen, la aplicación sigue funcionando en modo demostra
 
 ## Base de datos
 
-El esquema SQL esperado para Supabase está en `supabase/schema.sql`.
+El esquema SQL esperado para Supabase está en `supabase/schema.sql`. Si la tabla
+`publicaciones` ya existía antes de incorporar el flujo de aprobación, deben
+estar aplicadas en Supabase las columnas `cambios_pendientes` y
+`eliminacion_pendiente`.
 
 Incluye tablas para:
 

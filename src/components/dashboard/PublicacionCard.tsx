@@ -7,7 +7,9 @@ import {
   CheckCircle2,
   Layers,
   Loader2,
+  Pencil,
   Sparkles,
+  Trash2,
   User,
 } from 'lucide-react';
 import type {
@@ -190,18 +192,39 @@ export default function PublicacionCard({
             <span>Sello Otorgado</span>
           </span>
         )}
-        {puedeEditar && (
-          <button type="button" onClick={() => onEditar(publicacion)} className="text-xs font-bold text-slate-700 underline">
-            Editar
-          </button>
-        )}
-        {puedeEliminar && (
-          <button type="button" onClick={() => onEliminar(publicacion.id)} className="text-xs font-bold text-red-800 underline">
-            {publicacion.eliminacion_pendiente ? 'Eliminación pendiente' : 'Eliminar'}
-          </button>
+        {(puedeEditar || puedeEliminar) && (
+          <div className="flex items-center gap-2">
+            {puedeEditar && (
+              <button
+                type="button"
+                onClick={() => onEditar(publicacion)}
+                aria-label={`Editar la publicación ${publicacion.titulo}`}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-bold text-slate-700 shadow-sm transition hover:border-slate-400 hover:bg-slate-100 hover:text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-400 focus:ring-offset-1 active:scale-[0.98]"
+              >
+                <Pencil className="h-3.5 w-3.5" aria-hidden="true" />
+                <span>Editar</span>
+              </button>
+            )}
+            {puedeEliminar && (
+              <button
+                type="button"
+                onClick={() => onEliminar(publicacion.id)}
+                disabled={Boolean(publicacion.eliminacion_pendiente)}
+                aria-label={`Eliminar la publicación ${publicacion.titulo}`}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-red-200 bg-white px-3 py-1.5 text-xs font-bold text-red-800 shadow-sm transition hover:border-red-300 hover:bg-red-50 hover:text-red-900 focus:outline-none focus:ring-2 focus:ring-red-400 focus:ring-offset-1 active:scale-[0.98] disabled:cursor-not-allowed disabled:border-red-100 disabled:bg-red-50 disabled:text-red-400"
+              >
+                <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
+                <span>{publicacion.eliminacion_pendiente ? 'Pendiente' : 'Eliminar'}</span>
+              </button>
+            )}
+          </div>
         )}
         {esProfesor && (publicacion.cambios_pendientes || publicacion.eliminacion_pendiente) && (
-          <button type="button" onClick={() => onAprobar(publicacion.id)} className="text-xs font-bold text-red-900 underline">
+          <button
+            type="button"
+            onClick={() => onAprobar(publicacion.id)}
+            className="inline-flex items-center rounded-lg border border-red-800 bg-red-900 px-3 py-1.5 text-xs font-bold text-white shadow-sm transition hover:bg-red-950 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-1 active:scale-[0.98]"
+          >
             Aprobar cambios
           </button>
         )}
