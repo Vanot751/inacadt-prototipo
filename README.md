@@ -13,6 +13,8 @@ La aplicación ya incluye:
 - protección de rutas privadas para /dashboard
 - muro de publicaciones con búsqueda, filtros y carga de datos de ejemplo
 - creación de publicaciones desde la UI
+- CRUD completo de publicaciones con controles de autoría
+- flujo de cambios pendientes para publicaciones selladas, con aprobación docente
 - marca de sello de profesor y validación de permisos por rol
 - sanitización y validación de entrada para mitigar XSS e inyección
 - estilos institucionales y accesibilidad básica en la interfaz
@@ -46,6 +48,9 @@ npm run lint
 │   │   │   └── publicaciones/
 │   │   │       ├── route.ts
 │   │   │       └── [id]/
+│   │   │           ├── route.ts
+│   │   │           ├── aprobacion/
+│   │   │           │   └── route.ts
 │   │   │           └── sello/
 │   │   │               └── route.ts
 │   │   ├── auth/
@@ -109,6 +114,9 @@ npm run lint
 
 - reconocimiento de usuario con rol Profesor o Estudiante
 - visualización de estado del usuario en la barra superior
+- los profesores pueden crear, leer, editar y eliminar cualquier publicación
+- los estudiantes solo pueden editar o eliminar publicaciones propias
+- una edición o eliminación estudiantil sobre una publicación sellada queda pendiente de aprobación docente
 - acción para otorgar sello de profesor a una publicación si el usuario autenticado tiene permisos
 
 ### Seguridad
@@ -137,6 +145,8 @@ Incluye tablas para:
 
 - usuarios
 - publicaciones
+
+La API expone `GET/POST /api/publicaciones`, `GET/PATCH/PUT/DELETE /api/publicaciones/:id` y `PATCH /api/publicaciones/:id/aprobacion`. Las políticas RLS y el trigger `validar_cambios_publicacion` impiden que un estudiante modifique directamente el contenido visible de una publicación sellada.
 
 Se recomienda ejecutar ese script en el SQL Editor de Supabase antes de usar la app en modo real con autenticación y persistencia de datos.
 

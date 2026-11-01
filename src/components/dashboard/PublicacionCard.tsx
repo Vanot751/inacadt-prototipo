@@ -20,6 +20,11 @@ interface PublicacionCardProps {
   publicacion: Publicacion;
   rolUsuario: RolUsuario;
   onOtorgarSello: (id: string) => Promise<void>;
+  puedeEditar: boolean;
+  puedeEliminar: boolean;
+  onEditar: (publicacion: Publicacion) => void;
+  onEliminar: (id: string) => Promise<void>;
+  onAprobar: (id: string) => Promise<void>;
 }
 
 const COMPLEJIDAD_STYLES: Record<
@@ -44,6 +49,11 @@ export default function PublicacionCard({
   publicacion,
   rolUsuario,
   onOtorgarSello,
+  puedeEditar,
+  puedeEliminar,
+  onEditar,
+  onEliminar,
+  onAprobar,
 }: PublicacionCardProps) {
   const [procesandoSello, setProcesandoSello] = useState(false);
 
@@ -180,8 +190,22 @@ export default function PublicacionCard({
             <span>Sello Otorgado</span>
           </span>
         )}
+        {puedeEditar && (
+          <button type="button" onClick={() => onEditar(publicacion)} className="text-xs font-bold text-slate-700 underline">
+            Editar
+          </button>
+        )}
+        {puedeEliminar && (
+          <button type="button" onClick={() => onEliminar(publicacion.id)} className="text-xs font-bold text-red-800 underline">
+            {publicacion.eliminacion_pendiente ? 'Eliminación pendiente' : 'Eliminar'}
+          </button>
+        )}
+        {esProfesor && (publicacion.cambios_pendientes || publicacion.eliminacion_pendiente) && (
+          <button type="button" onClick={() => onAprobar(publicacion.id)} className="text-xs font-bold text-red-900 underline">
+            Aprobar cambios
+          </button>
+        )}
       </div>
     </article>
   );
 }
-

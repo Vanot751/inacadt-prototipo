@@ -2,13 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { isSupabaseConfigured } from '@/lib/supabase/client';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
 import { isValidResourceId } from '@/lib/security/validation';
-import type { ApiResponse, Publicacion, RolUsuario } from '@/types/inacadt';
-
-interface OtorgarSelloPayload {
-  usuarioId?: string;
-  usuarioEmail?: string;
-  rol?: RolUsuario;
-}
+import type { ApiResponse, Publicacion } from '@/types/inacadt';
 
 /**
  * RF08 - Funcionalidad Crítica: Otorgar Sello de Profesor
@@ -34,18 +28,16 @@ async function handleOtorgarSello(
       );
     }
 
-    // 2. Lectura opcional del body y cabecera Authorization
-    let body: OtorgarSelloPayload = {};
-    try {
-      body = await request.json();
-    } catch {
-      // Body opcional si viene solo por cookies/token
-    }
-
     const authHeader = request.headers.get('authorization');
     const accessToken = authHeader?.startsWith('Bearer ')
       ? authHeader.replace('Bearer ', '').trim()
       : undefined;
+    let body: { rol?: string } = {};
+    try {
+      body = await request.json();
+    } catch {
+      // El cuerpo es opcional cuando se usa la sesión de Supabase.
+    }
 
     // 3. Si Supabase está configurado y no es un ID de demostración local
     const isDemoId = id.startsWith('pub-');
@@ -53,46 +45,24 @@ async function handleOtorgarSello(
     if (isSupabaseConfigured() && !isDemoId) {
       const supabaseServer = await createSupabaseServerClient(accessToken);
 
-      let verifiedRole: string | null = null;
-      let userIdToLookup = body.usuarioId;
-      let userEmailToLookup = body.usuarioEmail;
-
       // Obtener usuario autenticado explícitamente con supabaseServer.auth.getUser()
       const {
         data: { user: authUser },
       } = await supabaseServer.auth.getUser();
 
-      if (authUser) {
-        userIdToLookup = authUser.id;
-        userEmailToLookup = authUser.email ?? userEmailToLookup;
+      if (!authUser) {
+        return NextResponse.json(
+          { ok: false, error: 'No autorizado: se requiere una sesión autenticada.' },
+          { status: 401 }
+        );
       }
 
-      // Consultar rol en la tabla 'usuarios' de Supabase (por ID o por email)
-      if (userIdToLookup) {
-        const { data: userById } = await supabaseServer
-          .from('usuarios')
-          .select('rol')
-          .eq('id', userIdToLookup)
-          .maybeSingle();
-
-        if (userById?.rol) {
-          verifiedRole = userById.rol;
-        }
-      }
-
-      if (!verifiedRole && userEmailToLookup) {
-        const { data: userByEmail } = await supabaseServer
-          .from('usuarios')
-          .select('rol')
-          .eq('email', userEmailToLookup)
-          .maybeSingle();
-
-        if (userByEmail?.rol) {
-          verifiedRole = userByEmail.rol;
-        }
-      }
-
-      const effectiveRole = verifiedRole || body.rol || '';
+      const { data: authenticatedProfile } = await supabaseServer
+        .from('usuarios')
+        .select('rol')
+        .eq('id', authUser.id)
+        .maybeSingle();
+      const effectiveRole = authenticatedProfile?.rol || '';
 
       if (effectiveRole.trim().toLowerCase() !== 'profesor') {
         return NextResponse.json(

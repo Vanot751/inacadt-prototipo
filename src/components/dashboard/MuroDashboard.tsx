@@ -22,9 +22,12 @@ import {
   cargarDatosEjemploEnSupabase,
   cerrarSesionSupabase,
   crearPublicacionMuro,
+  actualizarPublicacionMuro,
+  aprobarCambiosPublicacion,
   obtenerPublicacionesMuro,
   obtenerSesionActual,
   otorgarSelloProfesorAction,
+  eliminarPublicacionMuro,
 } from '@/lib/supabase/actions';
 import { sanitizeText } from '@/lib/security/validation';
 import {
@@ -49,6 +52,7 @@ export default function MuroDashboard() {
   const [soloConSello, setSoloConSello] = useState(false);
 
   const [modalAbierto, setModalAbierto] = useState(false);
+  const [publicacionEnEdicion, setPublicacionEnEdicion] = useState<Publicacion | null>(null);
 
   // Notificaciones accesibles (ARIA live)
   const [notificacion, setNotificacion] = useState<{
@@ -140,6 +144,42 @@ export default function MuroDashboard() {
       return { ok: true };
     }
     return { ok: false, error: res.error };
+  };
+
+  const handleEditarPublicacion = async (input: NuevaPublicacionInput) => {
+    if (!usuario || !publicacionEnEdicion) return { ok: false, error: 'Sesión no válida.' };
+    const res = await actualizarPublicacionMuro(publicacionEnEdicion.id, input, usuario);
+    if (res.ok) {
+      if (res.data) setPublicaciones((prev) => prev.map((pub) => pub.id === res.data?.id ? res.data : pub));
+      setPublicacionEnEdicion(null);
+      setModalAbierto(false);
+      setNotificacion({ tipo: 'exito', mensaje: res.message || 'Publicación actualizada.' });
+    }
+    return { ok: res.ok, error: res.error };
+  };
+
+  const handleEliminarPublicacion = async (id: string) => {
+    if (!usuario || !window.confirm('¿Deseas eliminar esta publicación?')) return;
+    const res = await eliminarPublicacionMuro(id, usuario);
+    if (res.ok) {
+      if (res.message?.includes('aprobación')) {
+        setPublicaciones((prev) => prev.map((pub) => pub.id === id ? { ...pub, eliminacion_pendiente: true } : pub));
+      } else {
+        setPublicaciones((prev) => prev.filter((pub) => pub.id !== id));
+      }
+    }
+    setNotificacion({ tipo: res.ok ? 'exito' : 'error', mensaje: res.message || res.error || 'No se pudo eliminar.' });
+  };
+
+  const handleAprobarCambios = async (id: string) => {
+    if (!usuario) return;
+    const res = await aprobarCambiosPublicacion(id, usuario);
+    if (res.ok) {
+      setPublicaciones((prev) => res.message?.includes('Eliminación')
+        ? prev.filter((pub) => pub.id !== id)
+        : prev.map((pub) => pub.id === id && res.data ? res.data : pub));
+    }
+    setNotificacion({ tipo: res.ok ? 'exito' : 'error', mensaje: res.message || res.error || 'No se pudo aprobar.' });
   };
 
   // Sembrar datos iniciales si la tabla de Supabase está vacía
@@ -518,6 +558,14 @@ export default function MuroDashboard() {
                 publicacion={pub}
                 rolUsuario={usuario.rol}
                 onOtorgarSello={handleOtorgarSello}
+                puedeEditar={esProfesor || pub.autor_id === usuario.id}
+                puedeEliminar={esProfesor || pub.autor_id === usuario.id}
+                onEditar={(publicacion) => {
+                  setPublicacionEnEdicion(publicacion);
+                  setModalAbierto(true);
+                }}
+                onEliminar={handleEliminarPublicacion}
+                onAprobar={handleAprobarCambios}
               />
             ))}
           </section>
@@ -526,9 +574,14 @@ export default function MuroDashboard() {
 
       {/* Modal para nueva publicación */}
       <NuevaPublicacionModal
+        key={`${modalAbierto ? 'open' : 'closed'}-${publicacionEnEdicion?.id ?? 'new'}`}
         isOpen={modalAbierto}
-        onClose={() => setModalAbierto(false)}
-        onSubmit={handleCrearPublicacion}
+        onClose={() => {
+          setModalAbierto(false);
+          setPublicacionEnEdicion(null);
+        }}
+        onSubmit={publicacionEnEdicion ? handleEditarPublicacion : handleCrearPublicacion}
+        initialData={publicacionEnEdicion}
       />
 
       {/* Pie de página institucional */}
@@ -546,4 +599,3 @@ export default function MuroDashboard() {
     </div>
   );
 }
-

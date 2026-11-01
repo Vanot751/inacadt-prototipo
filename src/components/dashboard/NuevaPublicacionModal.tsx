@@ -13,6 +13,7 @@ import {
   COMPLEJIDADES_VALIDAS,
   type ComplejidadPublicacion,
   type NuevaPublicacionInput,
+  type Publicacion,
 } from '@/types/inacadt';
 import { validatePublicacionInput } from '@/lib/security/validation';
 
@@ -20,16 +21,18 @@ interface NuevaPublicacionModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSubmit: (data: NuevaPublicacionInput) => Promise<{ ok: boolean; error?: string }>;
+  initialData?: Publicacion | null;
 }
 
 export default function NuevaPublicacionModal({
   isOpen,
   onClose,
   onSubmit,
+  initialData = null,
 }: NuevaPublicacionModalProps) {
-  const [titulo, setTitulo] = useState('');
-  const [contenido, setContenido] = useState('');
-  const [categoria, setCategoria] = useState(CATEGORIAS_SUGERIDAS[0]);
+  const [titulo, setTitulo] = useState(initialData?.titulo ?? '');
+  const [contenido, setContenido] = useState(initialData?.contenido ?? '');
+  const [categoria, setCategoria] = useState(initialData?.categoria ?? CATEGORIAS_SUGERIDAS[0]);
   const [complejidad, setComplejidad] =
     useState<ComplejidadPublicacion>('Sencillo');
   const [errors, setErrors] = useState<{
@@ -111,7 +114,7 @@ export default function NuevaPublicacionModal({
               id="modal-nueva-publicacion-titulo"
               className="text-base font-bold"
             >
-              Nueva publicación
+              {initialData ? 'Editar publicación' : 'Nueva publicación'}
             </h2>
           </div>
           <button
@@ -279,4 +282,3 @@ export default function NuevaPublicacionModal({
     </div>
   );
 }
-

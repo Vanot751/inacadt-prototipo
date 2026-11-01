@@ -35,8 +35,12 @@ export interface Publicacion {
   posee_sello_profesor: boolean;
   autor_id?: string | null;
   autor_nombre?: string | null;
+  cambios_pendientes?: Partial<NuevaPublicacionInput> | null;
+  eliminacion_pendiente?: boolean;
   created_at?: string;
 }
+
+export type PublicacionInput = NuevaPublicacionInput;
 
 export interface NuevaPublicacionInput {
   titulo: string;
@@ -51,4 +55,3 @@ export interface ApiResponse<T = unknown> {
   error?: string;
   message?: string;
 }
-

@@ -10,6 +10,7 @@ import {
   COMPLEJIDADES_VALIDAS,
   type ComplejidadPublicacion,
   type NuevaPublicacionInput,
+  type PublicacionInput,
   type Publicacion,
   type RolUsuario,
   type Usuario,
@@ -69,6 +70,8 @@ function normalizePublicacion(row: Record<string, unknown>, index = 0): Publicac
     posee_sello_profesor: Boolean(row.posee_sello_profesor),
     autor_id: row.autor_id ? String(row.autor_id) : null,
     autor_nombre: row.autor_nombre ? String(row.autor_nombre) : null,
+    cambios_pendientes: (row.cambios_pendientes as Publicacion['cambios_pendientes']) ?? null,
+    eliminacion_pendiente: Boolean(row.eliminacion_pendiente),
     created_at: row.created_at ? String(row.created_at) : undefined,
   };
 }
@@ -684,3 +687,118 @@ export async function cargarDatosEjemploEnSupabase(): Promise<{
   }
   return { ok: true };
 }
+
+function getCrudAccessToken(): Promise<string | undefined> {
+    if (!isSupabaseConfigured()) return Promise.resolve(undefined);
+    return supabase.auth.getSession().then(({ data }) => data.session?.access_token);
+  }
+
+  /**
+   * Actualiza una publicación. En publicaciones selladas, el servidor conserva
+   * los datos visibles y registra el cambio para aprobación docente.
+   */
+export async function actualizarPublicacionMuro(
+    publicacionId: string,
+    input: PublicacionInput,
+    usuarioActual: Usuario
+  ): Promise<{ ok: boolean; data?: Publicacion; error?: string; message?: string }> {
+    if (!isValidResourceId(publicacionId)) return { ok: false, error: 'ID de publicación no válido.' };
+    const validation = validatePublicacionInput(input);
+    if (!validation.valid || !validation.sanitizedData) {
+      return { ok: false, error: Object.values(validation.errors).find(Boolean) || 'Datos inválidos.' };
+    }
+
+    if (!isSupabaseConfigured()) {
+      const actuales = obtenerPublicacionesLocales();
+      const index = actuales.findIndex((pub) => pub.id === publicacionId);
+      const actual = actuales[index];
+      if (!actual) return { ok: false, error: 'Publicación no encontrada.' };
+      if (actual.autor_id !== usuarioActual.id && usuarioActual.rol !== 'Profesor') {
+        return { ok: false, error: 'Solo puedes modificar publicaciones de tu autoría.' };
+      }
+      const cambio = usuarioActual.rol === 'Estudiante' && actual.posee_sello_profesor
+        ? { ...actual, cambios_pendientes: validation.sanitizedData }
+        : { ...actual, ...validation.sanitizedData };
+      actuales[index] = cambio;
+      localStorage.setItem(STORAGE_PUBLICACIONES_KEY, JSON.stringify(actuales));
+      return {
+        ok: true,
+        data: cambio,
+        message: cambio.cambios_pendientes ? 'Cambios enviados para aprobación de un profesor.' : 'Publicación actualizada correctamente.',
+      };
+    }
+
+    const token = await getCrudAccessToken();
+    const response = await fetch(`/api/publicaciones/${encodeURIComponent(publicacionId)}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+      body: JSON.stringify(validation.sanitizedData),
+    });
+    const result = await response.json() as { ok: boolean; data?: Publicacion; error?: string; message?: string };
+    return response.ok && result.ok
+      ? result
+      : { ok: false, error: result.error || 'No se pudo actualizar la publicación.' };
+  }
+
+export async function eliminarPublicacionMuro(
+    publicacionId: string,
+    usuarioActual: Usuario
+  ): Promise<{ ok: boolean; error?: string; message?: string }> {
+    if (!isValidResourceId(publicacionId)) return { ok: false, error: 'ID de publicación no válido.' };
+    if (!isSupabaseConfigured()) {
+      const actuales = obtenerPublicacionesLocales();
+      const actual = actuales.find((pub) => pub.id === publicacionId);
+      if (!actual) return { ok: false, error: 'Publicación no encontrada.' };
+      if (actual.autor_id !== usuarioActual.id && usuarioActual.rol !== 'Profesor') {
+        return { ok: false, error: 'Solo puedes eliminar publicaciones de tu autoría.' };
+      }
+      if (usuarioActual.rol === 'Estudiante' && actual.posee_sello_profesor) {
+        const actualizadas = actuales.map((pub) => pub.id === publicacionId ? { ...pub, eliminacion_pendiente: true } : pub);
+        localStorage.setItem(STORAGE_PUBLICACIONES_KEY, JSON.stringify(actualizadas));
+        return { ok: true, message: 'Eliminación enviada para aprobación de un profesor.' };
+      }
+      localStorage.setItem(STORAGE_PUBLICACIONES_KEY, JSON.stringify(actuales.filter((pub) => pub.id !== publicacionId)));
+      return { ok: true, message: 'Publicación eliminada correctamente.' };
+    }
+
+    const token = await getCrudAccessToken();
+    const response = await fetch(`/api/publicaciones/${encodeURIComponent(publicacionId)}`, {
+      method: 'DELETE',
+      headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+    });
+    const result = await response.json() as { ok: boolean; error?: string; message?: string };
+    return response.ok && result.ok
+      ? result
+      : { ok: false, error: result.error || 'No se pudo eliminar la publicación.' };
+  }
+
+export async function aprobarCambiosPublicacion(
+    publicacionId: string,
+    usuarioActual: Usuario
+  ): Promise<{ ok: boolean; data?: Publicacion; error?: string; message?: string }> {
+    if (usuarioActual.rol !== 'Profesor' || !isValidResourceId(publicacionId)) {
+      return { ok: false, error: 'Solo un profesor puede aprobar cambios.' };
+    }
+    if (!isSupabaseConfigured()) {
+      const actuales = obtenerPublicacionesLocales();
+      const actual = actuales.find((pub) => pub.id === publicacionId);
+      if (!actual) return { ok: false, error: 'Publicación no encontrada.' };
+      if (actual.eliminacion_pendiente) {
+        localStorage.setItem(STORAGE_PUBLICACIONES_KEY, JSON.stringify(actuales.filter((pub) => pub.id !== publicacionId)));
+        return { ok: true, message: 'Eliminación aprobada.' };
+      }
+      if (!actual.cambios_pendientes) return { ok: false, error: 'La publicación no tiene cambios pendientes.' };
+      const updated = { ...actual, ...actual.cambios_pendientes, cambios_pendientes: null };
+      localStorage.setItem(STORAGE_PUBLICACIONES_KEY, JSON.stringify(actuales.map((pub) => pub.id === publicacionId ? updated : pub)));
+      return { ok: true, data: updated, message: 'Cambios aprobados correctamente.' };
+    }
+    const token = await getCrudAccessToken();
+    const response = await fetch(`/api/publicaciones/${encodeURIComponent(publicacionId)}/aprobacion`, {
+      method: 'PATCH',
+      headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+    });
+    const result = await response.json() as { ok: boolean; data?: Publicacion; error?: string; message?: string };
+    return response.ok && result.ok
+      ? result
+      : { ok: false, error: result.error || 'No se pudieron aprobar los cambios.' };
+  }
