@@ -1,5 +1,8 @@
 # INACADT
 
+Link a despliegue del proyecto en Vercel:
+https://inacadt-prototipo.vercel.app/
+
 Prototipo de una plataforma universitaria para compartir conocimiento académico, gestionar publicaciones y diferenciar perfiles con roles docentes/alumnos.
 
 El proyecto está desarrollado con Next.js 16, React 19, TypeScript y Tailwind CSS, y soporta tanto una integración real con Supabase como un modo de demostración local cuando no hay configuración de entorno disponible.
